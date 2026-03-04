@@ -1,0 +1,24 @@
+services:
+  calendar-mongo:
+    image: mongo:7
+    container_name: calendar-mongo
+    restart: unless-stopped
+    volumes:
+      - calendar_mongo_data:/data/db
+    ports:
+      - "127.0.0.1:27018:27017"
+
+  calendar-api:
+    build: ./server
+    container_name: calendar-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      - MONGODB_URI=mongodb://calendar-mongo:27017/calendar
+      - PORT=5000
+    depends_on:
+      - calendar-mongo
+
+volumes:
+  calendar_mongo_data:
