@@ -12,8 +12,8 @@ services:
     build: ./server
     container_name: calendar-api
     restart: unless-stopped
-    expose:
-      - "5000"
+    ports:
+      - "5000:5000"
     environment:
       - MONGODB_URI=mongodb://calendar-mongo:27017/calendar
       - PORT=5000
