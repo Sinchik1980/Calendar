@@ -26,6 +26,7 @@ const Calendar = () => {
   const [month, setMonth] = useState(today.getMonth());
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<'agenda' | 'grid'>('agenda');
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const { user, logout } = useAuth();
   const isMobile = useIsMobile();
@@ -134,6 +135,9 @@ const Calendar = () => {
         <RightSection>
           {isMobile ? (
             <>
+              <IconBtn onClick={() => setMobileView(mobileView === 'agenda' ? 'grid' : 'agenda')}>
+                {mobileView === 'agenda' ? '\u25A6' : '\u2630'}
+              </IconBtn>
               <IconBtn onClick={() => setSearchOpen(!searchOpen)}>
                 {searchOpen ? '\u2715' : '\uD83D\uDD0D'}
               </IconBtn>
@@ -174,7 +178,41 @@ const Calendar = () => {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        {isMobile ? (
+        {isMobile && mobileView === 'grid' ? (
+          <>
+            <MobileWeekdayRow>
+              {WEEKDAYS.map((wd) => (
+                <MobileWeekday key={wd}>{wd}</MobileWeekday>
+              ))}
+            </MobileWeekdayRow>
+            <MobileGrid>
+              {days.map((day) => {
+                const dayTasks = tasksByDate.get(day.date) || [];
+                const dayHolidays = allHolidays.get(day.date) || [];
+                return (
+                  <MobileGridCell
+                    key={day.date}
+                    $isCurrentMonth={day.isCurrentMonth}
+                    $isToday={day.isToday}
+                    $hasTasks={dayTasks.length > 0}
+                    $hasHoliday={dayHolidays.length > 0}
+                  >
+                    <MobileGridDay $isToday={day.isToday}>{day.dayOfMonth}</MobileGridDay>
+                    {dayTasks.length > 0 && (
+                      <MobileGridDots>
+                        {dayTasks.slice(0, 3).map((t) => (
+                          <MobileGridDot key={t._id} />
+                        ))}
+                        {dayTasks.length > 3 && <MobileGridMore>+{dayTasks.length - 3}</MobileGridMore>}
+                      </MobileGridDots>
+                    )}
+                    {dayHolidays.length > 0 && <MobileGridHolidayDot />}
+                  </MobileGridCell>
+                );
+              })}
+            </MobileGrid>
+          </>
+        ) : isMobile ? (
           <AgendaList>
             {agendaDays.map((day) => {
               const dayTasks = tasksByDate.get(day.date) || [];
@@ -416,6 +454,87 @@ const AgendaHoliday = styled.span`
   background: #fce4ec;
   padding: 2px 6px;
   border-radius: 4px;
+`;
+
+const MobileWeekdayRow = styled.div`
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 2px;
+`;
+
+const MobileWeekday = styled.div`
+  text-align: center;
+  font-weight: 600;
+  font-size: 11px;
+  color: #999;
+  padding: 4px 0;
+`;
+
+const MobileGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: #e0e0e0;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+`;
+
+const MobileGridCell = styled.div<{
+  $isCurrentMonth: boolean;
+  $isToday: boolean;
+  $hasTasks: boolean;
+  $hasHoliday: boolean;
+}>`
+  background: ${({ $isToday, $isCurrentMonth }) =>
+    $isToday ? '#e8f0fe' : $isCurrentMonth ? '#fff' : '#f9f9f9'};
+  padding: 4px 2px;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: ${({ $isCurrentMonth }) => ($isCurrentMonth ? 1 : 0.5)};
+`;
+
+const MobileGridDay = styled.span<{ $isToday: boolean }>`
+  font-size: 13px;
+  font-weight: ${({ $isToday }) => ($isToday ? 700 : 400)};
+  color: ${({ $isToday }) => ($isToday ? '#fff' : '#333')};
+  background: ${({ $isToday }) => ($isToday ? '#4285f4' : 'transparent')};
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+`;
+
+const MobileGridDots = styled.div`
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  margin-top: 2px;
+`;
+
+const MobileGridDot = styled.div`
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #4285f4;
+`;
+
+const MobileGridMore = styled.span`
+  font-size: 8px;
+  color: #4285f4;
+  font-weight: 600;
+`;
+
+const MobileGridHolidayDot = styled.div`
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #d32f2f;
+  margin-top: 1px;
 `;
 
 const DragOverlayItem = styled.div`
