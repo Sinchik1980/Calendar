@@ -14,6 +14,7 @@ interface CalendarCellProps {
   onAddTask: (title: string, date: string) => void;
   onEditTask: (id: string, title: string) => void;
   onDeleteTask: (id: string) => void;
+  isMobile?: boolean;
 }
 
 const CalendarCell = ({
@@ -24,6 +25,7 @@ const CalendarCell = ({
   onAddTask,
   onEditTask,
   onDeleteTask,
+  isMobile,
 }: CalendarCellProps) => {
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -49,6 +51,41 @@ const CalendarCell = ({
   };
 
   const taskIds = tasks.map((t) => t._id);
+
+  if (isMobile) {
+    return (
+      <MobileCell ref={setNodeRef} $isOver={isOver}>
+        <TasksContainer>
+          <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+            {tasks.map((task) => (
+              <TaskItem
+                key={task._id}
+                task={task}
+                onEdit={onEditTask}
+                onDelete={onDeleteTask}
+                searchTerm={searchTerm}
+                isMobile
+              />
+            ))}
+          </SortableContext>
+        </TasksContainer>
+
+        {adding ? (
+          <MobileAddInput
+            ref={inputRef}
+            autoFocus
+            value={newTitle}
+            placeholder="Add task..."
+            onChange={(e) => setNewTitle(e.target.value)}
+            onBlur={handleAdd}
+            onKeyDown={handleKeyDown}
+          />
+        ) : (
+          <MobileAddBtn onClick={() => setAdding(true)}>+ Add task</MobileAddBtn>
+        )}
+      </MobileCell>
+    );
+  }
 
   return (
     <Cell
@@ -176,4 +213,29 @@ const AddButton = styled.button`
   &:hover {
     color: #4285f4;
   }
+`;
+
+const MobileCell = styled.div<{ $isOver: boolean }>`
+  background: ${({ $isOver }) => ($isOver ? '#e3f2fd' : 'transparent')};
+  transition: background 0.15s;
+`;
+
+const MobileAddInput = styled.input`
+  width: 100%;
+  border: 1px solid #4285f4;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  margin-top: 4px;
+`;
+
+const MobileAddBtn = styled.button`
+  border: none;
+  background: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px 0;
 `;

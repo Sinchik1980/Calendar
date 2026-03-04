@@ -4,6 +4,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   closestCorners,
@@ -13,6 +14,7 @@ import { useCalendar } from '../hooks/useCalendar';
 import { useTasks } from '../hooks/useTasks';
 import { useHolidays } from '../hooks/useHolidays';
 import { useAuth } from '../context/AuthContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 import type { Task } from '../types';
 import CalendarCell from './CalendarCell';
 
@@ -23,14 +25,15 @@ const Calendar = () => {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const { user, logout } = useAuth();
+  const isMobile = useIsMobile();
 
   const { days, startDate, endDate } = useCalendar(year, month);
   const { tasks, addTask, editTask, removeTask, moveTask } = useTasks(startDate, endDate, search);
   const holidays = useHolidays(year);
 
-  // Also fetch holidays for adjacent years if the grid spans them
   const prevYearHolidays = useHolidays(year - 1);
   const nextYearHolidays = useHolidays(year + 1);
 
@@ -49,31 +52,28 @@ const Calendar = () => {
       arr.push(t);
       map.set(t.date, arr);
     });
-    // Sort each day's tasks by order
     map.forEach((arr) => arr.sort((a, b) => a.order - b.order));
     return map;
   }, [tasks]);
 
+  const agendaDays = useMemo(() => {
+    if (!isMobile) return days;
+    return days.filter((d) => d.isCurrentMonth);
+  }, [days, isMobile]);
+
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   );
 
   const goToPrevMonth = () => {
-    if (month === 0) {
-      setMonth(11);
-      setYear((y) => y - 1);
-    } else {
-      setMonth((m) => m - 1);
-    }
+    if (month === 0) { setMonth(11); setYear((y) => y - 1); }
+    else setMonth((m) => m - 1);
   };
 
   const goToNextMonth = () => {
-    if (month === 11) {
-      setMonth(0);
-      setYear((y) => y + 1);
-    } else {
-      setMonth((m) => m + 1);
-    }
+    if (month === 11) { setMonth(0); setYear((y) => y + 1); }
+    else setMonth((m) => m + 1);
   };
 
   const goToToday = () => {
@@ -101,24 +101,20 @@ const Calendar = () => {
     const task = tasks.find((t) => t._id === taskId);
     if (!task) return;
 
-    // Determine target date and order
     let targetDate: string;
     let targetOrder: number;
 
-    // If dropped over another task
     const overTask = tasks.find((t) => t._id === over.id);
     if (overTask) {
       targetDate = overTask.date;
       targetOrder = overTask.order;
     } else {
-      // Dropped over a cell (droppable)
       targetDate = over.id as string;
       const cellTasks = tasksByDate.get(targetDate) || [];
       targetOrder = cellTasks.length;
     }
 
     if (task.date === targetDate && task.order === targetOrder) return;
-
     await moveTask(taskId, targetDate, targetOrder);
   };
 
@@ -136,26 +132,41 @@ const Calendar = () => {
           <TodayBtn onClick={goToToday}>Today</TodayBtn>
         </NavSection>
         <RightSection>
-          <SearchInput
-            type="text"
-            placeholder="Search tasks..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {user && (
-            <UserSection>
-              <UserName>{user.name}</UserName>
-              <LogoutBtn onClick={logout}>Logout</LogoutBtn>
-            </UserSection>
+          {isMobile ? (
+            <>
+              <IconBtn onClick={() => setSearchOpen(!searchOpen)}>
+                {searchOpen ? '\u2715' : '\uD83D\uDD0D'}
+              </IconBtn>
+              <IconBtn onClick={logout}>{'\u21AA'}</IconBtn>
+            </>
+          ) : (
+            <>
+              <SearchInput
+                type="text"
+                placeholder="Search tasks..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {user && (
+                <UserSection>
+                  <UserName>{user.name}</UserName>
+                  <LogoutBtn onClick={logout}>Logout</LogoutBtn>
+                </UserSection>
+              )}
+            </>
           )}
         </RightSection>
       </Header>
 
-      <WeekdayRow>
-        {WEEKDAYS.map((wd) => (
-          <Weekday key={wd}>{wd}</Weekday>
-        ))}
-      </WeekdayRow>
+      {isMobile && searchOpen && (
+        <MobileSearchBar
+          type="text"
+          placeholder="Search tasks..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          autoFocus
+        />
+      )}
 
       <DndContext
         sensors={sensors}
@@ -163,20 +174,61 @@ const Calendar = () => {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <Grid>
-          {days.map((day) => (
-            <CalendarCell
-              key={day.date}
-              day={day}
-              tasks={tasksByDate.get(day.date) || []}
-              holidays={allHolidays.get(day.date) || []}
-              searchTerm={search}
-              onAddTask={addTask}
-              onEditTask={handleEditTask}
-              onDeleteTask={removeTask}
-            />
-          ))}
-        </Grid>
+        {isMobile ? (
+          <AgendaList>
+            {agendaDays.map((day) => {
+              const dayTasks = tasksByDate.get(day.date) || [];
+              const dayHolidays = allHolidays.get(day.date) || [];
+              const weekday = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' });
+
+              return (
+                <AgendaDay key={day.date} $isToday={day.isToday}>
+                  <AgendaDayHeader>
+                    <AgendaDate $isToday={day.isToday}>
+                      <span>{day.dayOfMonth}</span>
+                      <AgendaWeekday>{weekday}</AgendaWeekday>
+                    </AgendaDate>
+                    {dayHolidays.map((h) => (
+                      <AgendaHoliday key={h.name}>{h.localName}</AgendaHoliday>
+                    ))}
+                  </AgendaDayHeader>
+                  <CalendarCell
+                    day={day}
+                    tasks={dayTasks}
+                    holidays={[]}
+                    searchTerm={search}
+                    onAddTask={addTask}
+                    onEditTask={handleEditTask}
+                    onDeleteTask={removeTask}
+                    isMobile
+                  />
+                </AgendaDay>
+              );
+            })}
+          </AgendaList>
+        ) : (
+          <>
+            <WeekdayRow>
+              {WEEKDAYS.map((wd) => (
+                <Weekday key={wd}>{wd}</Weekday>
+              ))}
+            </WeekdayRow>
+            <Grid>
+              {days.map((day) => (
+                <CalendarCell
+                  key={day.date}
+                  day={day}
+                  tasks={tasksByDate.get(day.date) || []}
+                  holidays={allHolidays.get(day.date) || []}
+                  searchTerm={search}
+                  onAddTask={addTask}
+                  onEditTask={handleEditTask}
+                  onDeleteTask={removeTask}
+                />
+              ))}
+            </Grid>
+          </>
+        )}
 
         <DragOverlay>
           {activeTask && <DragOverlayItem>{activeTask.title}</DragOverlayItem>}
@@ -193,6 +245,7 @@ const Container = styled.div`
   margin: 0 auto;
   padding: 16px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  @media (max-width: 768px) { padding: 8px; }
 `;
 
 const Header = styled.div`
@@ -202,12 +255,14 @@ const Header = styled.div`
   margin-bottom: 16px;
   flex-wrap: wrap;
   gap: 8px;
+  @media (max-width: 768px) { margin-bottom: 8px; }
 `;
 
 const NavSection = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+  @media (max-width: 768px) { gap: 4px; }
 `;
 
 const NavBtn = styled.button`
@@ -217,22 +272,31 @@ const NavBtn = styled.button`
   padding: 6px 12px;
   cursor: pointer;
   font-size: 16px;
-
-  &:hover {
-    background: #f0f0f0;
-  }
+  min-width: 40px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  &:hover { background: #f0f0f0; }
 `;
 
 const TodayBtn = styled(NavBtn)`
   font-size: 13px;
-  margin-left: 8px;
+  margin-left: 4px;
 `;
 
 const MonthTitle = styled.h2`
   margin: 0;
   font-size: 20px;
-  min-width: 200px;
+  min-width: 160px;
   text-align: center;
+  @media (max-width: 768px) { font-size: 16px; min-width: 120px; }
+`;
+
+const RightSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
 
 const SearchInput = styled.input`
@@ -242,34 +306,33 @@ const SearchInput = styled.input`
   font-size: 14px;
   width: 240px;
   outline: none;
-
-  &:focus {
-    border-color: #4285f4;
-  }
+  &:focus { border-color: #4285f4; }
 `;
 
-const WeekdayRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-`;
-
-const Weekday = styled.div`
-  text-align: center;
-  font-weight: 600;
-  font-size: 13px;
-  color: #666;
-  padding: 8px 0;
-`;
-
-const Grid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-`;
-
-const RightSection = styled.div`
+const IconBtn = styled.button`
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  min-width: 40px;
+  min-height: 40px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  padding: 0;
+`;
+
+const MobileSearchBar = styled.input`
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  outline: none;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+  &:focus { border-color: #4285f4; }
 `;
 
 const UserSection = styled.div`
@@ -291,11 +354,68 @@ const LogoutBtn = styled.button`
   cursor: pointer;
   font-size: 12px;
   color: #666;
+  &:hover { background: #f0f0f0; color: #d93025; }
+`;
 
-  &:hover {
-    background: #f0f0f0;
-    color: #d93025;
-  }
+const WeekdayRow = styled.div`
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+`;
+
+const Weekday = styled.div`
+  text-align: center;
+  font-weight: 600;
+  font-size: 13px;
+  color: #666;
+  padding: 8px 0;
+`;
+
+const Grid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+`;
+
+const AgendaList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const AgendaDay = styled.div<{ $isToday: boolean }>`
+  background: ${({ $isToday }) => ($isToday ? '#e8f0fe' : '#fff')};
+  border: 1px solid ${({ $isToday }) => ($isToday ? '#4285f4' : '#e0e0e0')};
+  border-radius: 8px;
+  padding: 8px 12px;
+`;
+
+const AgendaDayHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+`;
+
+const AgendaDate = styled.div<{ $isToday: boolean }>`
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 18px;
+  font-weight: ${({ $isToday }) => ($isToday ? 700 : 500)};
+  color: ${({ $isToday }) => ($isToday ? '#4285f4' : '#333')};
+`;
+
+const AgendaWeekday = styled.span`
+  font-size: 12px;
+  color: #999;
+  font-weight: 400;
+`;
+
+const AgendaHoliday = styled.span`
+  font-size: 11px;
+  color: #d32f2f;
+  background: #fce4ec;
+  padding: 2px 6px;
+  border-radius: 4px;
 `;
 
 const DragOverlayItem = styled.div`
