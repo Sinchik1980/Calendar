@@ -28,7 +28,7 @@ router.post('/register', async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({ email: email.toLowerCase(), password: hashedPassword, name });
 
-    const token = signToken(user._id as string);
+    const token = signToken(String(user._id));
     res.status(201).json({ token, user: { id: user._id, email: user.email, name: user.name } });
   } catch (err) {
     res.status(500).json({ error: 'Registration failed' });
@@ -54,7 +54,7 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = signToken(user._id as string);
+    const token = signToken(String(user._id));
     res.json({ token, user: { id: user._id, email: user.email, name: user.name } });
   } catch (err) {
     res.status(500).json({ error: 'Login failed' });
