@@ -1,13 +1,17 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import Task from '../models/Task';
+import { auth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
+// All routes require auth
+router.use(auth);
+
 // GET /api/tasks?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&search=text
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const { startDate, endDate, search } = req.query;
-    const filter: Record<string, unknown> = {};
+    const filter: Record<string, unknown> = { userId: req.userId };
 
     if (startDate && endDate) {
       filter.date = { $gte: startDate, $lte: endDate };
@@ -25,13 +29,13 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // POST /api/tasks
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const { title, date } = req.body;
-    const maxOrder = await Task.findOne({ date }).sort({ order: -1 });
+    const maxOrder = await Task.findOne({ date, userId: req.userId }).sort({ order: -1 });
     const order = maxOrder ? maxOrder.order + 1 : 0;
 
-    const task = await Task.create({ title, date, order });
+    const task = await Task.create({ title, date, order, userId: req.userId });
     res.status(201).json(task);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create task' });
@@ -39,9 +43,13 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // PUT /api/tasks/:id
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const task = await Task.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId },
+      req.body,
+      { new: true }
+    );
     if (!task) return res.status(404).json({ error: 'Task not found' });
     res.json(task);
   } catch (err) {
@@ -49,41 +57,39 @@ router.put('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/tasks/:id/reorder — move task to a new date/position
-router.put('/:id/reorder', async (req: Request, res: Response) => {
+// PUT /api/tasks/:id/reorder
+router.put('/:id/reorder', async (req: AuthRequest, res: Response) => {
   try {
     const { date, order } = req.body;
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findOne({ _id: req.params.id, userId: req.userId });
     if (!task) return res.status(404).json({ error: 'Task not found' });
 
     const oldDate = task.date;
     const oldOrder = task.order;
+    const userFilter = { userId: req.userId };
 
-    // If moving to a different date, close the gap in the old date
     if (oldDate !== date) {
       await Task.updateMany(
-        { date: oldDate, order: { $gt: oldOrder } },
+        { ...userFilter, date: oldDate, order: { $gt: oldOrder } },
         { $inc: { order: -1 } }
       );
     } else {
-      // Same date reorder: shift tasks between old and new positions
       if (order > oldOrder) {
         await Task.updateMany(
-          { date, order: { $gt: oldOrder, $lte: order }, _id: { $ne: task._id } },
+          { ...userFilter, date, order: { $gt: oldOrder, $lte: order }, _id: { $ne: task._id } },
           { $inc: { order: -1 } }
         );
       } else if (order < oldOrder) {
         await Task.updateMany(
-          { date, order: { $gte: order, $lt: oldOrder }, _id: { $ne: task._id } },
+          { ...userFilter, date, order: { $gte: order, $lt: oldOrder }, _id: { $ne: task._id } },
           { $inc: { order: 1 } }
         );
       }
     }
 
-    // If moving to a new date, make room at the target position
     if (oldDate !== date) {
       await Task.updateMany(
-        { date, order: { $gte: order } },
+        { ...userFilter, date, order: { $gte: order } },
         { $inc: { order: 1 } }
       );
     }
@@ -99,14 +105,13 @@ router.put('/:id/reorder', async (req: Request, res: Response) => {
 });
 
 // DELETE /api/tasks/:id
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const task = await Task.findByIdAndDelete(req.params.id);
+    const task = await Task.findOneAndDelete({ _id: req.params.id, userId: req.userId });
     if (!task) return res.status(404).json({ error: 'Task not found' });
 
-    // Close the gap
     await Task.updateMany(
-      { date: task.date, order: { $gt: task.order } },
+      { userId: req.userId, date: task.date, order: { $gt: task.order } },
       { $inc: { order: -1 } }
     );
 

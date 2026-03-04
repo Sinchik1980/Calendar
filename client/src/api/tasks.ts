@@ -5,6 +5,15 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const api = axios.create({ baseURL: API_URL });
 
+// Add auth token to every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const fetchTasks = async (startDate: string, endDate: string, search?: string): Promise<Task[]> => {
   const params: Record<string, string> = { startDate, endDate };
   if (search) params.search = search;

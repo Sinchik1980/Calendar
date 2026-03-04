@@ -12,6 +12,7 @@ import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { useCalendar } from '../hooks/useCalendar';
 import { useTasks } from '../hooks/useTasks';
 import { useHolidays } from '../hooks/useHolidays';
+import { useAuth } from '../context/AuthContext';
 import type { Task } from '../types';
 import CalendarCell from './CalendarCell';
 
@@ -23,6 +24,7 @@ const Calendar = () => {
   const [month, setMonth] = useState(today.getMonth());
   const [search, setSearch] = useState('');
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const { user, logout } = useAuth();
 
   const { days, startDate, endDate } = useCalendar(year, month);
   const { tasks, addTask, editTask, removeTask, moveTask } = useTasks(startDate, endDate, search);
@@ -133,12 +135,20 @@ const Calendar = () => {
           <NavBtn onClick={goToNextMonth}>&gt;</NavBtn>
           <TodayBtn onClick={goToToday}>Today</TodayBtn>
         </NavSection>
-        <SearchInput
-          type="text"
-          placeholder="Search tasks..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <RightSection>
+          <SearchInput
+            type="text"
+            placeholder="Search tasks..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {user && (
+            <UserSection>
+              <UserName>{user.name}</UserName>
+              <LogoutBtn onClick={logout}>Logout</LogoutBtn>
+            </UserSection>
+          )}
+        </RightSection>
       </Header>
 
       <WeekdayRow>
@@ -254,6 +264,38 @@ const Weekday = styled.div`
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+`;
+
+const RightSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const UserSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const UserName = styled.span`
+  font-size: 13px;
+  color: #666;
+`;
+
+const LogoutBtn = styled.button`
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #666;
+
+  &:hover {
+    background: #f0f0f0;
+    color: #d93025;
+  }
 `;
 
 const DragOverlayItem = styled.div`
