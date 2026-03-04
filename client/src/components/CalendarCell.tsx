@@ -1,9 +1,10 @@
 import { useState, useRef } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { CalendarDay } from '../hooks/useCalendar';
 import type { Task, Holiday } from '../types';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import TaskItem from './TaskItem';
 
 interface CalendarCellProps {
@@ -30,8 +31,19 @@ const CalendarCell = ({
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const { isListening, transcript, isSupported, startListening, stopListening } = useSpeechRecognition();
 
   const { setNodeRef, isOver } = useDroppable({ id: day.date });
+
+  const handleMicClick = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening((text) => {
+        onAddTask(text, day.date);
+      });
+    }
+  };
 
   const handleAdd = () => {
     const trimmed = newTitle.trim();
@@ -70,6 +82,8 @@ const CalendarCell = ({
           </SortableContext>
         </TasksContainer>
 
+        {isListening && <ListeningIndicator>🎙 {transcript || 'Listening...'}</ListeningIndicator>}
+
         {adding ? (
           <MobileAddInput
             ref={inputRef}
@@ -81,7 +95,14 @@ const CalendarCell = ({
             onKeyDown={handleKeyDown}
           />
         ) : (
-          <MobileAddBtn onClick={() => setAdding(true)}>+ Add task</MobileAddBtn>
+          <MobileAddRow>
+            <MobileAddBtn onClick={() => setAdding(true)}>+ Add task</MobileAddBtn>
+            {isSupported && (
+              <MobileMicBtn onClick={handleMicClick} $isListening={isListening}>
+                {isListening ? '⏹' : '🎙'}
+              </MobileMicBtn>
+            )}
+          </MobileAddRow>
         )}
       </MobileCell>
     );
@@ -116,6 +137,8 @@ const CalendarCell = ({
         </SortableContext>
       </TasksContainer>
 
+      {isListening && <ListeningIndicator>🎙 {transcript || 'Listening...'}</ListeningIndicator>}
+
       {adding ? (
         <AddInput
           ref={inputRef}
@@ -127,7 +150,14 @@ const CalendarCell = ({
           onKeyDown={handleKeyDown}
         />
       ) : (
-        <AddButton onClick={() => setAdding(true)}>+</AddButton>
+        <AddRow>
+          <AddButton onClick={() => setAdding(true)}>+</AddButton>
+          {isSupported && (
+            <MicButton onClick={handleMicClick} $isListening={isListening}>
+              {isListening ? '⏹' : '🎙'}
+            </MicButton>
+          )}
+        </AddRow>
       )}
     </Cell>
   );
@@ -194,6 +224,19 @@ const AddInput = styled.input`
   flex-shrink: 0;
 `;
 
+const AddRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+
+  ${Cell}:hover & {
+    opacity: 1;
+  }
+`;
+
 const AddButton = styled.button`
   border: none;
   background: none;
@@ -201,18 +244,41 @@ const AddButton = styled.button`
   cursor: pointer;
   font-size: 16px;
   padding: 0;
-  align-self: center;
   line-height: 1;
-  flex-shrink: 0;
-  opacity: 0;
-
-  ${Cell}:hover & {
-    opacity: 1;
-  }
 
   &:hover {
     color: #4285f4;
   }
+`;
+
+const pulse = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+`;
+
+const MicButton = styled.button<{ $isListening: boolean }>`
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  line-height: 1;
+  animation: ${({ $isListening }) => ($isListening ? pulse : 'none')} 1s infinite;
+
+  &:hover {
+    transform: scale(1.2);
+  }
+`;
+
+const ListeningIndicator = styled.div`
+  font-size: 10px;
+  color: #d93025;
+  padding: 2px 4px;
+  background: #fce4ec;
+  border-radius: 4px;
+  margin-bottom: 2px;
+  text-align: center;
+  animation: ${pulse} 1.5s infinite;
 `;
 
 const MobileCell = styled.div<{ $isOver: boolean }>`
@@ -231,6 +297,12 @@ const MobileAddInput = styled.input`
   margin-top: 4px;
 `;
 
+const MobileAddRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
 const MobileAddBtn = styled.button`
   border: none;
   background: none;
@@ -238,4 +310,14 @@ const MobileAddBtn = styled.button`
   cursor: pointer;
   font-size: 13px;
   padding: 6px 0;
+`;
+
+const MobileMicBtn = styled.button<{ $isListening: boolean }>`
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px;
+  line-height: 1;
+  animation: ${({ $isListening }) => ($isListening ? pulse : 'none')} 1s infinite;
 `;
