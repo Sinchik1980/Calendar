@@ -38,7 +38,9 @@ const CalendarCell = ({
   const handleMicClick = () => {
     if (isListening) {
       stopListening();
+      setAdding(false);
     } else {
+      setAdding(false);
       startListening((text) => {
         onAddTask(text, day.date);
       });
@@ -82,27 +84,39 @@ const CalendarCell = ({
           </SortableContext>
         </TasksContainer>
 
-        {isListening && <ListeningIndicator>🎙 {transcript || 'Listening...'}</ListeningIndicator>}
+        {isListening && <ListeningIndicator>{transcript || 'Listening...'}</ListeningIndicator>}
 
-        {adding ? (
-          <MobileAddInput
-            ref={inputRef}
-            autoFocus
-            value={newTitle}
-            placeholder="Add task..."
-            onChange={(e) => setNewTitle(e.target.value)}
-            onBlur={handleAdd}
-            onKeyDown={handleKeyDown}
-          />
-        ) : (
-          <MobileAddRow>
-            <MobileAddBtn onClick={() => setAdding(true)}>+ Add task</MobileAddBtn>
+        {adding || isListening ? (
+          <MobileInputRow>
+            <MobileAddInput
+              ref={inputRef}
+              autoFocus={adding}
+              value={isListening ? transcript : newTitle}
+              placeholder={isListening ? 'Speak now...' : 'Add task...'}
+              readOnly={isListening}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onBlur={() => { if (!isListening) handleAdd(); }}
+              onKeyDown={handleKeyDown}
+            />
             {isSupported && (
-              <MobileMicBtn onClick={handleMicClick} $isListening={isListening}>
-                {isListening ? '⏹' : '🎙'}
-              </MobileMicBtn>
+              <MobileMicIconBtn onClick={handleMicClick} $isListening={isListening}>
+                {isListening ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#d93025">
+                    <rect x="6" y="6" width="12" height="12" rx="2"/>
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="9" y="2" width="6" height="12" rx="3"/>
+                    <path d="M5 10a7 7 0 0 0 14 0"/>
+                    <line x1="12" y1="17" x2="12" y2="21"/>
+                    <line x1="9" y1="21" x2="15" y2="21"/>
+                  </svg>
+                )}
+              </MobileMicIconBtn>
             )}
-          </MobileAddRow>
+          </MobileInputRow>
+        ) : (
+          <MobileAddBtn onClick={() => setAdding(true)}>+ Add task</MobileAddBtn>
         )}
       </MobileCell>
     );
@@ -271,14 +285,14 @@ const MicButton = styled.button<{ $isListening: boolean }>`
 `;
 
 const ListeningIndicator = styled.div`
-  font-size: 10px;
+  font-size: 11px;
   color: #d93025;
-  padding: 2px 4px;
+  padding: 2px 6px;
   background: #fce4ec;
   border-radius: 4px;
   margin-bottom: 2px;
   text-align: center;
-  animation: ${pulse} 1.5s infinite;
+  animation: ${pulse} 1.2s infinite;
 `;
 
 const MobileCell = styled.div<{ $isOver: boolean }>`
@@ -286,38 +300,46 @@ const MobileCell = styled.div<{ $isOver: boolean }>`
   transition: background 0.15s;
 `;
 
+const MobileInputRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+`;
+
 const MobileAddInput = styled.input`
-  width: 100%;
+  flex: 1;
   border: 1px solid #4285f4;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
   outline: none;
   box-sizing: border-box;
-  margin-top: 4px;
-`;
-
-const MobileAddRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  min-width: 0;
 `;
 
 const MobileAddBtn = styled.button`
   border: none;
   background: none;
-  color: #999;
+  color: #bbb;
   cursor: pointer;
   font-size: 13px;
   padding: 6px 0;
+  text-align: left;
 `;
 
-const MobileMicBtn = styled.button<{ $isListening: boolean }>`
+const MobileMicIconBtn = styled.button<{ $isListening: boolean }>`
   border: none;
-  background: none;
+  background: ${({ $isListening }) => ($isListening ? '#fce4ec' : '#f1f3f4')};
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: 18px;
-  padding: 4px;
-  line-height: 1;
+  flex-shrink: 0;
+  color: ${({ $isListening }) => ($isListening ? '#d93025' : '#666')};
   animation: ${({ $isListening }) => ($isListening ? pulse : 'none')} 1s infinite;
+  transition: background 0.2s;
 `;
