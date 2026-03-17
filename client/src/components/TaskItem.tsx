@@ -108,6 +108,7 @@ const Wrapper = styled.div<{ $isMobile?: boolean }>`
   border-radius: ${({ $isMobile }) => ($isMobile ? '6px' : '4px')};
   font-size: ${({ $isMobile }) => ($isMobile ? '14px' : '12px')};
   cursor: default;
+  touch-action: ${({ $isMobile }) => ($isMobile ? 'none' : 'auto')};
 
   &:hover button {
     opacity: 1;
@@ -121,6 +122,7 @@ const DragHandle = styled.span<{ $isMobile?: boolean }>`
   user-select: none;
   flex-shrink: 0;
   padding: ${({ $isMobile }) => ($isMobile ? '4px' : '0')};
+  touch-action: none;
 
   &:active {
     cursor: grabbing;
