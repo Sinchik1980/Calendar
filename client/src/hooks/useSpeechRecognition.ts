@@ -35,24 +35,45 @@ export const useSpeechRecognition = () => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const callbackRef = useRef<((text: string) => void) | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const callbackRef = useRef<((text: string, audioBlob?: Blob) => void) | null>(null);
+  const finalTextRef = useRef('');
 
   const isSupported = !!getSpeechRecognition();
 
-  const startListening = useCallback((onResult: (text: string) => void) => {
+  const startListening = useCallback((onResult: (text: string, audioBlob?: Blob) => void) => {
     const SpeechRecognitionClass = getSpeechRecognition();
     if (!SpeechRecognitionClass) return;
 
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
+    if (recognitionRef.current) recognitionRef.current.stop();
+    if (mediaRecorderRef.current) mediaRecorderRef.current.stop();
+
+    callbackRef.current = onResult;
+    finalTextRef.current = '';
+    chunksRef.current = [];
+
+    // Start audio recording in parallel
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        if (finalTextRef.current && callbackRef.current) {
+          callbackRef.current(finalTextRef.current, blob);
+        }
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+    }).catch(() => {
+      // No mic access — still do transcription only
+    });
 
     const recognition = new SpeechRecognitionClass();
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = navigator.language || 'en-US';
-
-    callbackRef.current = onResult;
     recognitionRef.current = recognition;
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -70,17 +91,25 @@ export const useSpeechRecognition = () => {
 
       setTranscript(finalTranscript || interimTranscript);
 
-      if (finalTranscript && callbackRef.current) {
-        callbackRef.current(finalTranscript.trim());
+      if (finalTranscript) {
+        finalTextRef.current = finalTranscript.trim();
       }
     };
 
     recognition.onerror = () => {
+      mediaRecorderRef.current?.stop();
       setIsListening(false);
       setTranscript('');
     };
 
     recognition.onend = () => {
+      // Stop MediaRecorder — its onstop will fire the callback with text + blob
+      if (mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      } else if (finalTextRef.current && callbackRef.current) {
+        // No audio — call with text only
+        callbackRef.current(finalTextRef.current, undefined);
+      }
       setIsListening(false);
       setTranscript('');
     };
@@ -91,10 +120,10 @@ export const useSpeechRecognition = () => {
   }, []);
 
   const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
     setIsListening(false);
     setTranscript('');
   }, []);

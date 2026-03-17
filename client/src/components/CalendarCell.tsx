@@ -12,7 +12,7 @@ interface CalendarCellProps {
   tasks: Task[];
   holidays: Holiday[];
   searchTerm: string;
-  onAddTask: (title: string, date: string) => void;
+  onAddTask: (title: string, date: string) => Promise<Task>;
   onEditTask: (id: string, title: string) => void;
   onDeleteTask: (id: string) => void;
   onAttachAudio: (id: string, blob: Blob) => Promise<void>;
@@ -43,8 +43,11 @@ const CalendarCell = ({
     if (isListening) {
       stopListening();
     } else {
-      startListening((text) => {
-        onAddTask(text, day.date);
+      startListening(async (text, audioBlob) => {
+        const task = await onAddTask(text, day.date);
+        if (audioBlob && task?._id) {
+          await onAttachAudio(task._id, audioBlob);
+        }
       });
     }
   };
