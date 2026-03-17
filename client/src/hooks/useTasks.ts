@@ -22,8 +22,8 @@ export const useTasks = (startDate: string, endDate: string, search: string) => 
     load();
   }, [load]);
 
-  const addTask = async (title: string, date: string) => {
-    const task = await taskApi.createTask(title, date);
+  const addTask = async (title: string, date: string, time?: string) => {
+    const task = await taskApi.createTask(title, date, time);
     setTasks((prev) => [...prev, task]);
     return task;
   };

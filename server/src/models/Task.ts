@@ -6,6 +6,7 @@ export interface ITask extends Document {
   order: number;
   userId: mongoose.Types.ObjectId;
   audioUrl?: string;
+  time?: string; // "HH:MM" for timed events, undefined for notes
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,6 +18,7 @@ const TaskSchema = new Schema<ITask>(
     order: { type: Number, required: true, default: 0 },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     audioUrl: { type: String },
+    time: { type: String },
   },
   { timestamps: true }
 );

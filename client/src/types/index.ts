@@ -4,6 +4,7 @@ export interface Task {
   date: string;
   order: number;
   audioUrl?: string;
+  time?: string;
   createdAt: string;
   updatedAt: string;
 }

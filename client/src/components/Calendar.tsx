@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import type { Task } from '../types';
 import CalendarCell from './CalendarCell';
+import DayView from './DayView';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -28,6 +29,7 @@ const Calendar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileView, setMobileView] = useState<'agenda' | 'grid'>('agenda');
   const [scrollToDate, setScrollToDate] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const { user, logout } = useAuth();
   const isMobile = useIsMobile();
@@ -133,6 +135,22 @@ const Calendar = () => {
     await editTask(id, { title });
   };
 
+  if (selectedDay) {
+    const dayTasks = tasksByDate.get(selectedDay) || [];
+    return (
+      <DayView
+        date={selectedDay}
+        tasks={dayTasks}
+        onBack={() => setSelectedDay(null)}
+        onAddTask={addTask}
+        onEditTask={(id, title) => editTask(id, { title })}
+        onDeleteTask={removeTask}
+        onAttachAudio={attachAudio}
+        onRemoveAudio={removeAudio}
+      />
+    );
+  }
+
   return (
     <Container>
       <Header>
@@ -206,7 +224,7 @@ const Calendar = () => {
                     $isToday={day.isToday}
                     $hasTasks={dayTasks.length > 0}
                     $hasHoliday={dayHolidays.length > 0}
-                    onClick={() => { setScrollToDate(day.date); setMobileView('agenda'); }}
+                    onClick={() => setSelectedDay(day.date)}
                   >
                     <MobileGridDay $isToday={day.isToday}>{day.dayOfMonth}</MobileGridDay>
                     {dayTasks.length > 0 && (
@@ -232,7 +250,7 @@ const Calendar = () => {
 
               return (
                 <AgendaDay key={day.date} id={`day-${day.date}`} $isToday={day.isToday}>
-                  <AgendaDayHeader>
+                  <AgendaDayHeader onClick={() => setSelectedDay(day.date)} style={{ cursor: 'pointer' }}>
                     <AgendaDate $isToday={day.isToday}>
                       <span>{day.dayOfMonth}</span>
                       <AgendaWeekday>{weekday}</AgendaWeekday>

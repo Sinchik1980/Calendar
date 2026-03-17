@@ -21,8 +21,8 @@ export const fetchTasks = async (startDate: string, endDate: string, search?: st
   return data;
 };
 
-export const createTask = async (title: string, date: string): Promise<Task> => {
-  const { data } = await api.post<Task>('/tasks', { title, date });
+export const createTask = async (title: string, date: string, time?: string): Promise<Task> => {
+  const { data } = await api.post<Task>('/tasks', { title, date, ...(time ? { time } : {}) });
   return data;
 };
 
