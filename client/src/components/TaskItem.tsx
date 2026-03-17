@@ -91,7 +91,7 @@ const TaskItem = ({ task, onEdit, onDelete, searchTerm, isMobile }: TaskItemProp
           {highlightText(task.title)}
         </TaskText>
       )}
-      <DeleteBtn onClick={() => onDelete(task._id)} $isMobile={isMobile}>×</DeleteBtn>
+      <DeleteBtn onClick={() => { if (window.confirm('Delete this task?')) onDelete(task._id); }} $isMobile={isMobile}>×</DeleteBtn>
     </Wrapper>
   );
 };
