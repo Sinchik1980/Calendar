@@ -1,6 +1,19 @@
 import { Router, Response } from 'express';
+import path from 'path';
+import fs from 'fs';
+import multer from 'multer';
+import { v4 as uuidv4 } from 'uuid';
 import Task from '../models/Task';
 import { auth, AuthRequest } from '../middleware/auth';
+
+const uploadsDir = path.join(__dirname, '../../../uploads/audio');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (_req, _file, cb) => cb(null, `${uuidv4()}.webm`),
+});
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = Router();
 
@@ -110,6 +123,12 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     const task = await Task.findOneAndDelete({ _id: req.params.id, userId: req.userId });
     if (!task) return res.status(404).json({ error: 'Task not found' });
 
+    if (task.audioUrl) {
+      const filename = path.basename(task.audioUrl);
+      const filePath = path.join(uploadsDir, filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+
     await Task.updateMany(
       { userId: req.userId, date: task.date, order: { $gt: task.order } },
       { $inc: { order: -1 } }
@@ -118,6 +137,48 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete task' });
+  }
+});
+
+// POST /api/tasks/:id/audio
+router.post('/:id/audio', upload.single('audio'), async (req: AuthRequest, res: Response) => {
+  try {
+    const task = await Task.findOne({ _id: req.params.id, userId: req.userId });
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    // Delete old audio if exists
+    if (task.audioUrl) {
+      const oldFile = path.join(uploadsDir, path.basename(task.audioUrl));
+      if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
+    }
+
+    const audioUrl = `/uploads/audio/${req.file.filename}`;
+    task.audioUrl = audioUrl;
+    await task.save();
+
+    res.json({ audioUrl });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to upload audio' });
+  }
+});
+
+// DELETE /api/tasks/:id/audio
+router.delete('/:id/audio', async (req: AuthRequest, res: Response) => {
+  try {
+    const task = await Task.findOne({ _id: req.params.id, userId: req.userId });
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+
+    if (task.audioUrl) {
+      const filePath = path.join(uploadsDir, path.basename(task.audioUrl));
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      task.audioUrl = undefined;
+      await task.save();
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete audio' });
   }
 });
 

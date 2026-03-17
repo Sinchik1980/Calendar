@@ -3,6 +3,7 @@ export interface Task {
   title: string;
   date: string;
   order: number;
+  audioUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

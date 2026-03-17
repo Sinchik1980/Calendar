@@ -44,5 +44,15 @@ export const useTasks = (startDate: string, endDate: string, search: string) => 
     return updated;
   };
 
-  return { tasks, loading, addTask, editTask, removeTask, moveTask, reload: load };
+  const attachAudio = async (id: string, blob: Blob) => {
+    const audioUrl = await taskApi.uploadAudio(id, blob);
+    setTasks((prev) => prev.map((t) => (t._id === id ? { ...t, audioUrl } : t)));
+  };
+
+  const removeAudio = async (id: string) => {
+    await taskApi.deleteAudio(id);
+    setTasks((prev) => prev.map((t) => (t._id === id ? { ...t, audioUrl: undefined } : t)));
+  };
+
+  return { tasks, loading, addTask, editTask, removeTask, moveTask, attachAudio, removeAudio, reload: load };
 };

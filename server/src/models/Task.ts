@@ -5,6 +5,7 @@ export interface ITask extends Document {
   date: string; // YYYY-MM-DD
   order: number;
   userId: mongoose.Types.ObjectId;
+  audioUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,6 +16,7 @@ const TaskSchema = new Schema<ITask>(
     date: { type: String, required: true, index: true },
     order: { type: Number, required: true, default: 0 },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    audioUrl: { type: String },
   },
   { timestamps: true }
 );

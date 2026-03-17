@@ -39,3 +39,16 @@ export const reorderTask = async (id: string, date: string, order: number): Prom
 export const deleteTask = async (id: string): Promise<void> => {
   await api.delete(`/tasks/${id}`);
 };
+
+export const uploadAudio = async (id: string, blob: Blob): Promise<string> => {
+  const form = new FormData();
+  form.append('audio', blob, 'recording.webm');
+  const { data } = await api.post<{ audioUrl: string }>(`/tasks/${id}/audio`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data.audioUrl;
+};
+
+export const deleteAudio = async (id: string): Promise<void> => {
+  await api.delete(`/tasks/${id}/audio`);
+};

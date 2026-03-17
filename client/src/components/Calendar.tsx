@@ -32,7 +32,7 @@ const Calendar = () => {
   const isMobile = useIsMobile();
 
   const { days, startDate, endDate } = useCalendar(year, month);
-  const { tasks, addTask, editTask, removeTask, moveTask } = useTasks(startDate, endDate, search);
+  const { tasks, addTask, editTask, removeTask, moveTask, attachAudio, removeAudio } = useTasks(startDate, endDate, search);
   const holidays = useHolidays(year);
 
   const prevYearHolidays = useHolidays(year - 1);
@@ -238,6 +238,8 @@ const Calendar = () => {
                     onAddTask={addTask}
                     onEditTask={handleEditTask}
                     onDeleteTask={removeTask}
+                    onAttachAudio={attachAudio}
+                    onRemoveAudio={removeAudio}
                     isMobile
                   />
                 </AgendaDay>
@@ -262,6 +264,8 @@ const Calendar = () => {
                   onAddTask={addTask}
                   onEditTask={handleEditTask}
                   onDeleteTask={removeTask}
+                  onAttachAudio={attachAudio}
+                  onRemoveAudio={removeAudio}
                 />
               ))}
             </Grid>

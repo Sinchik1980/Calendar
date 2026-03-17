@@ -15,6 +15,8 @@ interface CalendarCellProps {
   onAddTask: (title: string, date: string) => void;
   onEditTask: (id: string, title: string) => void;
   onDeleteTask: (id: string) => void;
+  onAttachAudio: (id: string, blob: Blob) => Promise<void>;
+  onRemoveAudio: (id: string) => Promise<void>;
   isMobile?: boolean;
 }
 
@@ -26,6 +28,8 @@ const CalendarCell = ({
   onAddTask,
   onEditTask,
   onDeleteTask,
+  onAttachAudio,
+  onRemoveAudio,
   isMobile,
 }: CalendarCellProps) => {
   const [adding, setAdding] = useState(false);
@@ -77,6 +81,8 @@ const CalendarCell = ({
                 task={task}
                 onEdit={onEditTask}
                 onDelete={onDeleteTask}
+                onAttachAudio={onAttachAudio}
+                onRemoveAudio={onRemoveAudio}
                 searchTerm={searchTerm}
                 isMobile
               />
@@ -145,6 +151,8 @@ const CalendarCell = ({
               task={task}
               onEdit={onEditTask}
               onDelete={onDeleteTask}
+              onAttachAudio={onAttachAudio}
+              onRemoveAudio={onRemoveAudio}
               searchTerm={searchTerm}
             />
           ))}
