@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
 import {
   DndContext,
@@ -27,6 +27,7 @@ const Calendar = () => {
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileView, setMobileView] = useState<'agenda' | 'grid'>('agenda');
+  const [scrollToDate, setScrollToDate] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const { user, logout } = useAuth();
   const isMobile = useIsMobile();
@@ -119,6 +120,15 @@ const Calendar = () => {
     await moveTask(taskId, targetDate, targetOrder);
   };
 
+  useEffect(() => {
+    if (scrollToDate && mobileView === 'agenda') {
+      setTimeout(() => {
+        document.getElementById(`day-${scrollToDate}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setScrollToDate(null);
+      }, 50);
+    }
+  }, [scrollToDate, mobileView]);
+
   const handleEditTask = async (id: string, title: string) => {
     await editTask(id, { title });
   };
@@ -196,6 +206,7 @@ const Calendar = () => {
                     $isToday={day.isToday}
                     $hasTasks={dayTasks.length > 0}
                     $hasHoliday={dayHolidays.length > 0}
+                    onClick={() => { setScrollToDate(day.date); setMobileView('agenda'); }}
                   >
                     <MobileGridDay $isToday={day.isToday}>{day.dayOfMonth}</MobileGridDay>
                     {dayTasks.length > 0 && (
@@ -220,7 +231,7 @@ const Calendar = () => {
               const weekday = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' });
 
               return (
-                <AgendaDay key={day.date} $isToday={day.isToday}>
+                <AgendaDay key={day.date} id={`day-${day.date}`} $isToday={day.isToday}>
                   <AgendaDayHeader>
                     <AgendaDate $isToday={day.isToday}>
                       <span>{day.dayOfMonth}</span>
@@ -498,6 +509,8 @@ const MobileGridCell = styled.div<{
   flex-direction: column;
   align-items: center;
   opacity: ${({ $isCurrentMonth }) => ($isCurrentMonth ? 1 : 0.5)};
+  cursor: pointer;
+  &:active { background: #e8f0fe; }
 `;
 
 const MobileGridDay = styled.span<{ $isToday: boolean }>`
