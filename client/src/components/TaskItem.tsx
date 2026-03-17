@@ -144,7 +144,7 @@ const TaskItem = ({ task, onEdit, onDelete, onAttachAudio, onRemoveAudio, search
 
       <Actions $isMobile={isMobile}>
         {audioSrc && !showPlayer && (
-          <AudioIconBtn onClick={() => setShowPlayer(true)} title="Play recording">
+          <AudioIconBtn $isMobile={isMobile} onClick={() => setShowPlayer(true)} title="Play recording">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M3 9a3 3 0 0 1 3-3h2l4-4v18l-4-4H6a3 3 0 0 1-3-3V9zm16.07-2.07a9 9 0 0 1 0 12.14M19 12a7 7 0 0 0-2.07-4.93"/>
               <circle cx="12" cy="12" r="1.5"/>
@@ -153,13 +153,13 @@ const TaskItem = ({ task, onEdit, onDelete, onAttachAudio, onRemoveAudio, search
         )}
 
         {recording ? (
-          <RecordBtn onClick={stopRecording} title="Stop recording">
+          <RecordBtn $isMobile={isMobile} onClick={stopRecording} title="Stop recording">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="#d93025">
               <rect x="6" y="6" width="12" height="12" rx="2"/>
             </svg>
           </RecordBtn>
         ) : (
-          <RecordBtn onClick={startRecording} title="Record audio" $dimmed>
+          <RecordBtn onClick={startRecording} title="Record audio" $dimmed $isMobile={isMobile}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="9" y="2" width="6" height="11" rx="3"/>
               <path d="M5 10a7 7 0 0 0 14 0"/>
@@ -265,7 +265,7 @@ const pulse = keyframes`
   50% { opacity: 0.4; }
 `;
 
-const RecordBtn = styled.button<{ $dimmed?: boolean }>`
+const RecordBtn = styled.button<{ $dimmed?: boolean; $isMobile?: boolean }>`
   border: none;
   background: none;
   cursor: pointer;
@@ -274,7 +274,7 @@ const RecordBtn = styled.button<{ $dimmed?: boolean }>`
   display: flex;
   align-items: center;
   color: ${({ $dimmed }) => ($dimmed ? '#aaa' : '#d93025')};
-  opacity: ${({ $dimmed }) => ($dimmed ? 0 : 1)};
+  opacity: ${({ $dimmed, $isMobile }) => ($isMobile ? 1 : $dimmed ? 0 : 1)};
   animation: ${({ $dimmed }) => ($dimmed ? 'none' : pulse)} 1s infinite;
 
   ${Wrapper}:hover & {
@@ -282,7 +282,7 @@ const RecordBtn = styled.button<{ $dimmed?: boolean }>`
   }
 `;
 
-const AudioIconBtn = styled.button`
+const AudioIconBtn = styled.button<{ $isMobile?: boolean }>`
   border: none;
   background: none;
   cursor: pointer;
@@ -290,7 +290,7 @@ const AudioIconBtn = styled.button`
   color: #4285f4;
   display: flex;
   align-items: center;
-  opacity: 0;
+  opacity: ${({ $isMobile }) => ($isMobile ? 1 : 0)};
 
   ${Wrapper}:hover & {
     opacity: 1;
